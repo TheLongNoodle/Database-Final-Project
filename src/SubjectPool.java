@@ -1,76 +1,65 @@
-import java.io.Serial;
 import java.io.Serializable;
-import java.util.Arrays;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class SubjectPool implements Serializable {
-	/**
-	 * 
-	 */
-	@Serial
-	private static final long serialVersionUID = 1L;
-	// variables
-	protected Subject[] subjects;
 
-	// constructor
-	public SubjectPool() {
-		this.subjects = new Subject[1];
-	}
+    // variables
+    private Connection con;
+    private static Statement stmt;
 
-	// usual get/set commands
-	public Subject[] getSubjects() {
-		return this.subjects;
-	}
+    // constructor
+    public SubjectPool(Connection con) throws SQLException {
+        this.con = con;
+        stmt = this.con.createStatement();
+    }
 
-	public Subject getSubject(int index) {
-		return this.subjects[index - 1];
-	}
+    // usual get/set commands
+    public int getSubjectsLen() throws SQLException {
+        String query = "SELECT COUNT(*) as total FROM subject";
+        ResultSet resultSet = stmt.executeQuery(query);
+        return resultSet.next() ? resultSet.getInt("total") : 0;
+    }
 
-	public AnswerPool getAnswerPool(int index) {
-		return this.subjects[index - 1].getAnswerPool();
-	}
+    public String getSubjectName(int sid) throws SQLException {
+        String query = "SELECT name FROM subject WHERE sid = " + sid;
+        ResultSet resultSet = stmt.executeQuery(query);
+        return resultSet.next() ? resultSet.getString("name") : "";
+    }
 
-	public QuestionPool getQuestionPool(int index) {
-		return this.subjects[index - 1].getQuestionPool();
-	}
+    public void setSubjectName(int sid, String name) throws SQLException {
+        String query = "UPDATE subject SET name = '" + name + "' WHERE sid = " + sid;
+        stmt.executeUpdate(query);
+    }
 
-	public void setAnswerPool(AnswerPool answerPool, int index) {
-		this.subjects[index - 1].setAnswerPool(answerPool);
-	}
+    // adding subject
+    public int addSubject(String name) throws SQLException {
+        String query = "INSERT INTO subject (name) VALUES ('" + name + "')";
+        stmt.executeUpdate(query);
+        query = "SELECT sid FROM subject WHERE name = '" + name + "'";
+        ResultSet resultSet = stmt.executeQuery(query);
+        return resultSet.next() ? resultSet.getInt("sid") : 0;
+    }
 
-	public void setQuestionPool(QuestionPool questionPool, int index) {
-		this.subjects[index - 1].setQuestionPool(questionPool);
-	}
+    // data to string (only names)
+    @Override
+    public String toString() {
 
-	// adding subject
-	public int addSubject(String name) {
-		this.subjects[this.subjects.length - 1] = new Subject(name, new QuestionPool(), new AnswerPool());
-		this.subjects = Arrays.copyOf(this.subjects, (this.subjects.length + 1));
-		sortSubjects();
-		return this.subjects.length - 1;
-	}
-
-	// data to string (only names)
-	@Override
-	public String toString() {
-		sortSubjects();
-		StringBuilder str = new StringBuilder();
-		for (int i = 0; i < this.subjects.length; i++) {
-			if (this.subjects[i] != null) {
-				str.append((i + 1)).append(") ").append(this.subjects[i].getName()).append("\n");
-			}
-		}
-		return str.toString();
-	}
-
-	// sorts array
-	public void sortSubjects() {
-		for (int i = 0; i < this.subjects.length; i++) {
-			if (this.subjects[i] == null) {
-				for (int k = i + 1; k < this.subjects.length; k++) {
-					this.subjects[k - 1] = this.subjects[k];
-				}
-			}
-		}
-	}
+        StringBuilder str = new StringBuilder();
+        String query = "SELECT * FROM subject";
+        ResultSet resultSet;
+        try {
+            resultSet = stmt.executeQuery(query);
+            while (resultSet.next()) {
+                str.append(resultSet.getInt("sid")).append(") ").append(resultSet.getString("name")).append("\n");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+        return str.toString();
+    }
 
 }
