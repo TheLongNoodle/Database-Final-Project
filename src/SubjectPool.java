@@ -6,19 +6,17 @@ import java.sql.Statement;
 
 public class SubjectPool implements Serializable {
 
-    // variables
-    private Connection con;
     private static Statement stmt;
 
     // constructor
     public SubjectPool(Connection con) throws SQLException {
-        this.con = con;
-        stmt = this.con.createStatement();
+        // variables
+        stmt = con.createStatement();
     }
 
     // usual get/set commands
-    public int getSubjectsLen() throws SQLException {
-        String query = "SELECT COUNT(*) as total FROM subject";
+    public int getSubjectsLen(int tid) throws SQLException {
+        String query = "SELECT COUNT(*) as total FROM subject_teacher WHERE tid=" + tid;
         ResultSet resultSet = stmt.executeQuery(query);
         return resultSet.next() ? resultSet.getInt("total") : 0;
     }
@@ -35,20 +33,31 @@ public class SubjectPool implements Serializable {
     }
 
     // adding subject
-    public int addSubject(String name) throws SQLException {
+    public int addSubject(String name, int tid) throws SQLException {
         String query = "INSERT INTO subject (name) VALUES ('" + name + "')";
         stmt.executeUpdate(query);
         query = "SELECT sid FROM subject WHERE name = '" + name + "'";
         ResultSet resultSet = stmt.executeQuery(query);
-        return resultSet.next() ? resultSet.getInt("sid") : 0;
+        int sid = resultSet.next() ? resultSet.getInt("sid") : 0;
+        query = "INSERT INTO subject_teacher (sid, tid) VALUES (" + sid + ", " + tid + ")";
+        stmt.executeUpdate(query);
+        return sid;
     }
 
     // data to string (only names)
     @Override
     public String toString() {
-
-        StringBuilder str = new StringBuilder();
         String query = "SELECT * FROM subject";
+        return toStringQuery(query);
+    }
+
+    public String toString(int tid) {
+        String query = "SELECT * FROM subject JOIN subject_teacher ON subject.sid = subject_teacher.sid WHERE subject_teacher.tid = " + tid;
+        return toStringQuery(query);
+    }
+
+    public String toStringQuery(String query){
+        StringBuilder str = new StringBuilder();
         ResultSet resultSet;
         try {
             resultSet = stmt.executeQuery(query);
@@ -56,10 +65,9 @@ public class SubjectPool implements Serializable {
                 str.append(resultSet.getInt("sid")).append(") ").append(resultSet.getString("name")).append("\n");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             System.exit(1);
         }
         return str.toString();
     }
-
 }

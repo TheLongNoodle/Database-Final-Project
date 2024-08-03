@@ -3,20 +3,16 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 public class QuestionPool implements Serializable {
 
     // variables
     private int sid;
-    private Connection con;
     private static Statement stmt;
 
     // constructor
     public QuestionPool(Connection con) throws SQLException {
-        this.con = con;
-        stmt = this.con.createStatement();
+        stmt = con.createStatement();
     }
 
     // usual get/set commands
@@ -143,44 +139,27 @@ public class QuestionPool implements Serializable {
                 str.append("Question ").append(resultSet.getInt("qid")).append(": ").append(resultSet.getString("question_text")).append("\n");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             System.exit(1);
         }
         return str.toString();
     }
 
     // data to string (including answers)
-    public String toStringFull() {
+    public String toStringFull(Connection con) {
         try {
             String query = "SELECT * FROM question WHERE sid = " + sid;
             StringBuilder str = new StringBuilder();
-            ResultSet resultSet = stmt.executeQuery(query);
             Statement stmt2 = con.createStatement();
+            ResultSet resultSet = stmt2.executeQuery(query);
             while (resultSet.next()) {
-                int qid = resultSet.getInt("qid");
-                str.append("Question ").append(qid).append(": ").append(resultSet.getString("question_text")).append("\n");
-                str.append("difficulty: ").append(resultSet.getInt("difficulty")).append("\n");
-                if (resultSet.getBoolean("is_selection")) {
-                    query = "SELECT selection_question.is_correct, answer.answer_text FROM answer JOIN selection_question ON answer.aid = selection_question.aid WHERE selection_question.qid = " + qid + " AND answer.sid = " + sid;
-                    ResultSet tempSet = stmt2.executeQuery(query);
-                    int i = 1;
-                    str.append("Answers:").append("\n");
-                    while (tempSet.next()) {
-                        str.append(i).append(") ").append(tempSet.getString("answer_text")).append(" [").append(tempSet.getBoolean("is_correct")).append("]\n");
-                        System.out.println(str);
-                        i++;
-                    }
-                } else {
-                    query = "SELECT answer.answer_text FROM open_question JOIN answer ON open_question.aid = answer.aid WHERE open_question.qid = " + qid + " AND answer.sid = " + sid;
-                    ResultSet tempSet = stmt2.executeQuery(query);
-                    tempSet.next();
-                    str.append("Answer: ").append(tempSet.getString("answer_text")).append("\n");
-                }
-                str.append("\n");
+                str.append(toStringSpecificFull(resultSet.getInt("qid")));
             }
+            stmt2.close();
             return str.toString();
         } catch (Exception e) {
             e.printStackTrace();
+            System.out.println(e.getMessage());
             System.exit(1);
         }
         return "";
@@ -194,11 +173,11 @@ public class QuestionPool implements Serializable {
             ResultSet resultSet = stmt.executeQuery(query);
             while (resultSet.next()) {
                 if (resultSet.getBoolean("is_selection")) {
-                    str.append("Question ").append(resultSet.getInt("qid")).append(": ").append(resultSet.getString("question_text")).append("\n");
+                    str.append("Question ").append(resultSet.getInt("qid")).append(" (").append(getDifficulty(resultSet.getInt("difficulty"))).append("): ").append(resultSet.getString("question_text")).append("\n");
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             System.exit(1);
         }
         return str.toString();
@@ -212,14 +191,74 @@ public class QuestionPool implements Serializable {
             ResultSet resultSet = stmt.executeQuery(query);
             while (resultSet.next()) {
                 if (!resultSet.getBoolean("is_selection")) {
-                    str.append("Question ").append(resultSet.getInt("qid")).append(": ").append(resultSet.getString("content")).append("\n");
+                    str.append("Question ").append(resultSet.getInt("qid")).append(" (").append(getDifficulty(resultSet.getInt("difficulty"))).append("): ").append(resultSet.getString("content")).append("\n");
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             System.exit(1);
         }
         return str.toString();
+    }
+
+    // specific question to string
+    public String toStringSpecificFull(int qid) {
+        try {
+            String query = "SELECT * FROM question WHERE sid = " + sid + " AND qid = " + qid;
+            StringBuilder str = new StringBuilder();
+            ResultSet resultSet = stmt.executeQuery(query);
+            resultSet.next();
+            str.append("Question ").append(qid).append(" (").append(getDifficulty(resultSet.getInt("difficulty"))).append("): ").append(resultSet.getString("question_text")).append("\n");
+            if (resultSet.getBoolean("is_selection")) {
+                query = "SELECT selection_question.is_correct, answer.answer_text FROM answer JOIN selection_question ON answer.aid = selection_question.aid WHERE selection_question.qid = " + qid + " AND answer.sid = " + sid;
+                ResultSet tempSet = stmt.executeQuery(query);
+                int i = 1;
+                str.append("Answers:").append("\n");
+                while (tempSet.next()) {
+                    str.append(i).append(") ").append(tempSet.getString("answer_text")).append(" [").append(tempSet.getBoolean("is_correct")).append("]\n");
+                    System.out.println(str);
+                    i++;
+                }
+            } else {
+                query = "SELECT answer.answer_text FROM open_question JOIN answer ON open_question.aid = answer.aid WHERE open_question.qid = " + qid + " AND answer.sid = " + sid;
+                ResultSet tempSet = stmt.executeQuery(query);
+                tempSet.next();
+                str.append("Answer: ").append(tempSet.getString("answer_text")).append("\n");
+            }
+            str.append("\n");
+            return str.toString();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            System.exit(1);
+        }
+        return "";
+    }
+
+    public String toStringSpecific(int qid) {
+        try {
+            String query = "SELECT * FROM question WHERE sid = " + sid + " AND qid = " + qid;
+            StringBuilder str = new StringBuilder();
+            ResultSet resultSet = stmt.executeQuery(query);
+            resultSet.next();
+            str.append("Question ").append(qid).append(" (").append(getDifficulty(resultSet.getInt("difficulty"))).append("): ").append(resultSet.getString("question_text")).append("\n");
+            if (resultSet.getBoolean("is_selection")) {
+                query = "SELECT selection_question.is_correct, answer.answer_text FROM answer JOIN selection_question ON answer.aid = selection_question.aid WHERE selection_question.qid = " + qid + " AND answer.sid = " + sid;
+                ResultSet tempSet = stmt.executeQuery(query);
+                int i = 1;
+                str.append("Answers:").append("\n");
+                while (tempSet.next()) {
+                    str.append(i).append(") ").append(tempSet.getString("answer_text")).append("\n");
+                    i++;
+                }
+            } else {
+                str.append("Answer:").append("\n");
+            }
+            return str.toString();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            System.exit(1);
+        }
+        return "";
     }
 
     // print question answers
@@ -239,5 +278,15 @@ public class QuestionPool implements Serializable {
         String query = "SELECT aid FROM selection_question WHERE qid = " + qid;
         ResultSet resultSet = stmt.executeQuery(query);
         return resultSet.next();
+    }
+
+    // get difficulty as a string
+    private String getDifficulty(int difficulty) {
+        return switch (difficulty) {
+            case 1 -> "easy";
+            case 2 -> "medium";
+            case 3 -> "hard";
+            default -> "unknown"; // Handle unexpected values
+        };
     }
 }

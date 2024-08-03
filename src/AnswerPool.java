@@ -8,22 +8,14 @@ public class AnswerPool implements Serializable {
 
     // variables
     private int sid;
-    private Connection con;
     private static Statement stmt;
 
     // constructor
     public AnswerPool(Connection con) throws SQLException {
-        this.con = con;
-        stmt = this.con.createStatement();
+        stmt = con.createStatement();
     }
 
     // usual get/set commands
-    public int getAnswersLen() throws SQLException {
-        String query = "SELECT COUNT(*) as total FROM answer WHERE sid = " + sid;
-        ResultSet resultSet = stmt.executeQuery(query);
-        return resultSet.next() ? resultSet.getInt("total") : 0;
-    }
-
     public void setSID(int sid) {
         this.sid = sid;
     }
@@ -74,7 +66,7 @@ public class AnswerPool implements Serializable {
                 str.append("Answer ").append(resultSet.getInt("aid")).append(": ").append(resultSet.getString("answer_text")).append("\n");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             System.exit(1);
         }
         return str.toString();

@@ -7,15 +7,18 @@ public class Main {
     private static Statement stmt;
     private static Scanner sc;
     private static int SID;
+    private static int TID;
+    private static TeacherPool teacherPool;
     private static SubjectPool subjectPool;
     private static QuestionPool questionPool;
     private static AnswerPool answerPool;
+    private static Connection con;
 
     public static void main(String[] args) throws SQLException {
 
         // Connecting to database
         try {
-            Connection con = DriverManager.getConnection("jdbc:postgresql://localhost:5432/examdb", "postgres", "admin");
+            con = DriverManager.getConnection("jdbc:postgresql://localhost:5432/examdb", "postgres", "admin");
             System.out.println("Connected to database!");
             stmt = con.createStatement();
 
@@ -23,53 +26,27 @@ public class Main {
             subjectPool = new SubjectPool(con);
             questionPool = new QuestionPool(con);
             answerPool = new AnswerPool(con);
+            teacherPool = new TeacherPool(con);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             System.exit(1);
         }
 
         SID = 0;
+        TID = 0;
         sc = new Scanner(System.in);
         int choice;
         boolean exit = false;
+        initiateUser();
 
-        if (subjectPool.getSubjectsLen() == 0) {
-            System.out.println("There are no subjects, please create a new one");
-            SID = createSubject();
-            questionPool.setSID(SID);
-            answerPool.setSID(SID);
-        } else {
-            System.out.println("1: choose existing subject.\n2: create new subject");
-            choice = sc.nextInt();
-            switch (choice) { // menu
-                case 1: { // choosing existing subject
-                    sc.nextLine();
-                    SID = changeSubject();
-                    questionPool.setSID(SID);
-                    answerPool.setSID(SID);
-                    break;
-                }
-                case 2: { // creating new subject
-                    sc.nextLine();
-                    SID = createSubject();
-                    questionPool.setSID(SID);
-                    answerPool.setSID(SID);
-                    break;
-                }
-                default: { // validating input
-                    System.out.println("Incorrect input, try again.");
-                    sc.nextLine();
-                    break;
-                }
-            }
-        }
+
         System.out.println("Welcome to my test GUI! \n");
         while (true) {
             try {
                 System.out.println("Current subject: " + subjectPool.getSubjectName(SID));
                 System.out.println(
-                        "1: question related.\n2: answer related.\n3: create exam.\n4: subject related.\n5: print all questions with answers.\n0: exit.");
+                        "1: question related.\n2: answer related.\n3: exam related.\n4: subject related.\n5: print all questions with answers.\n6: Switch user (teacher).\n0: exit.");
                 choice = sc.nextInt();
 
                 switch (choice) { // menu
@@ -193,8 +170,39 @@ public class Main {
                         }
                         break;
                     }
-                    case 3: { // create exam
-                        //TODO: create exam();
+                    case 3: { // Exam sub-menu
+                        while (true) {
+                            System.out.println(
+                                    "1: create exam.\n2: print exam.\n0: go back.");
+                            choice = sc.nextInt();
+                            switch (choice) {
+                                case 1: { // create exam
+                                    createExam();
+                                    exit = true;
+                                    break;
+                                }
+                                case 2: { // print exam
+                                    printExam();
+                                    exit = true;
+                                    break;
+                                }
+                                case 0: { // go back
+                                    sc.nextLine();
+                                    exit = true;
+                                    break;
+                                }
+                                default: { // validating input
+                                    sc.nextLine();
+                                    System.out.println("Incorrect input, try again.");
+                                    break;
+                                }
+                            }
+                            if (exit) { // exit loop condition
+                                exit = false;
+                                break;
+                            }
+                        }
+                        break;
                     }
 
                     case 4: { // print all questions with answers
@@ -247,6 +255,9 @@ public class Main {
                         printAll();
                         break;
                     }
+                    case 6: { // Switch user
+                        initiateUser();
+                    }
                     case 0: { // exit
                         exit = true;
                         break;
@@ -266,6 +277,177 @@ public class Main {
         }
     }
 
+    private static void createExam() throws SQLException {
+        if (questionPool.getQuestionsLen() < 1) {
+            System.out.println("There are no question on the subject!");
+            return;
+        }
+        String query = "INSERT INTO exam (sid, creation_time, tid) VALUES (" + SID + ", NOW(), " + TID + ")";
+        stmt.executeUpdate(query);
+        query = "SELECT * FROM exam WHERE sid = " + SID + " AND tid = " + TID + " ORDER BY creation_time DESC";
+        ResultSet resultSet = stmt.executeQuery(query);
+        resultSet.next();
+        int EID = resultSet.getInt("eid");
+        System.out.println("Exam created!");
+        int choice;
+        while (true) {
+            System.out.println(questionPool.toString());
+            System.out.print("Exam contains [ ");
+            query = "SELECT qid FROM exam_question WHERE eid = " + EID + " ORDER BY qid ASC";
+            resultSet = stmt.executeQuery(query);
+            while (resultSet.next()) {
+                System.out.print(resultSet.getString("qid") + " ");
+            }
+            System.out.print("]\nSelect question id to add to the test, 0 to finish: ");
+            choice = sc.nextInt();
+            if (choice == 0) {
+                break;
+            }
+            query = "SELECT COUNT(*) as total FROM question WHERE sid = " + SID + " AND qid = " + choice;
+            resultSet = stmt.executeQuery(query);
+            resultSet.next();
+            if (resultSet.getInt("total") > 0) {
+                query = "SELECT * FROM exam_question WHERE eid = " + EID + " AND qid = " + choice;
+                resultSet = stmt.executeQuery(query);
+                if (resultSet.next()) {
+                    System.out.println("Question is already added!");
+                } else {
+                    query = "INSERT INTO exam_question (eid, qid) VALUES (" + EID + ", " + choice + ")";
+                    stmt.executeUpdate(query);
+                    System.out.println("Question added!");
+                }
+            } else {
+                System.out.println("Question does not exist!");
+            }
+        }
+    }
+
+    private static void printExam() throws SQLException {
+        String query = "SELECT COUNT(*) as total FROM exam WHERE sid = " + SID + " AND tid = " + TID;
+        ResultSet resultSet = stmt.executeQuery(query);
+        resultSet.next();
+        if (resultSet.getInt("total") < 1) {
+            System.out.println("There are no exams on the subject!");
+            return;
+        }
+        query = "SELECT eid, subject.name, teacher.name, creation_time FROM subject JOIN exam ON subject.sid = exam.sid JOIN teacher ON exam.tid = teacher.tid WHERE exam.sid = " + SID + " AND exam.tid = " + TID;
+        resultSet = stmt.executeQuery(query);
+        while (resultSet.next()) {
+            System.out.println(resultSet.getInt(1) + ") " + resultSet.getString(2) + " test by " + resultSet.getString(3) + " on " + resultSet.getString(4) + ".");
+        }
+        int choice;
+        while (true) {
+            System.out.print("Choose exam ID: ");
+            choice = sc.nextInt();
+            query = "SELECT subject.name, teacher.name, creation_time FROM subject JOIN exam ON subject.sid = exam.sid JOIN teacher ON exam.tid = teacher.tid WHERE exam.eid = " + choice;
+            resultSet = stmt.executeQuery(query);
+            if (resultSet.next()) {
+                System.out.println("------------------------------\n" + resultSet.getString(1) + " test by " + resultSet.getString(2) + " on " + resultSet.getString(3) + ".\n\n");
+                query = "SELECT * FROM exam_question WHERE eid = " + choice;
+                resultSet = stmt.executeQuery(query);
+                while (resultSet.next()) {
+                    System.out.println(questionPool.toStringSpecific(resultSet.getInt("qid")));
+                }
+                System.out.println("------------------------------");
+                return;
+            } else {
+                System.out.println("Exam does not exist!");
+            }
+        }
+
+
+    }
+
+    private static void initiateUser() throws SQLException {
+
+        int choice;
+
+        //initial teacher selection
+        if (teacherPool.getTeachersLen() == 0) {
+            System.out.println("There are no teachers, please enter a new one");
+            TID = createTeacher();
+        } else {
+            System.out.println("1: choose existing teacher.\n2: create new teacher");
+            choice = sc.nextInt();
+            switch (choice) { // menu
+                case 1: { // choosing existing subject
+                    sc.nextLine();
+                    TID = changeTeacher();
+                    break;
+                }
+                case 2: { // creating new subject
+                    sc.nextLine();
+                    TID = createTeacher();
+                    break;
+                }
+                default: { // validating input
+                    System.out.println("Incorrect input, try again.");
+                    sc.nextLine();
+                    break;
+                }
+            }
+        }
+
+        // initial subject selection
+        if (subjectPool.getSubjectsLen(TID) == 0) {
+            System.out.println("There are no subjects, please create a new one");
+            sc = new Scanner(System.in);
+            SID = createSubject();
+            questionPool.setSID(SID);
+            answerPool.setSID(SID);
+        } else {
+            System.out.println("1: choose existing subject.\n2: create new subject");
+            choice = sc.nextInt();
+            switch (choice) { // menu
+                case 1: { // choosing existing subject
+                    sc.nextLine();
+                    SID = changeSubject();
+                    questionPool.setSID(SID);
+                    answerPool.setSID(SID);
+                    break;
+                }
+                case 2: { // creating new subject
+                    sc.nextLine();
+                    SID = createSubject();
+                    questionPool.setSID(SID);
+                    answerPool.setSID(SID);
+                    break;
+                }
+                default: { // validating input
+                    System.out.println("Incorrect input, try again.");
+                    sc.nextLine();
+                    break;
+                }
+            }
+        }
+    }
+
+    private static int createTeacher() throws SQLException {
+        System.out.print("Enter teacher full name: ");
+        String name = sc.nextLine();
+        System.out.print("Enter teacher address: ");
+        String address = sc.nextLine();
+        System.out.print("Enter teacher years of experience: ");
+        int exp = sc.nextInt();
+        sc.reset();
+        return teacherPool.addTeacher(name, address, exp);
+    }
+
+    private static int changeTeacher() throws SQLException {
+        System.out.println(teacherPool.toString());
+        System.out.print("Enter teacher number: ");
+        while (true) {
+            int choice = sc.nextInt();
+            String query = "SELECT * FROM teacher WHERE tid = " + choice;
+            ResultSet resultSet = stmt.executeQuery(query);
+            if (resultSet.next()) {
+                sc.reset();
+                return choice;
+            }
+            System.out.println("Wrong input, try again");
+        }
+    }
+
     private static void changeSubjectName() throws SQLException {
         System.out.println("Current name: " + subjectPool.getSubjectName(SID));
         System.out.print("Enter new name: ");
@@ -273,11 +455,11 @@ public class Main {
     }
 
     private static int changeSubject() throws SQLException {
-        System.out.println(subjectPool.toString());
+        System.out.println(subjectPool.toString(TID));
         System.out.print("Enter subject number: ");
         while (true) {
             int choice = sc.nextInt();
-            String query = "SELECT * FROM subject WHERE sid = " + choice;
+            String query = "SELECT * FROM subject JOIN subject_teacher ON subject.sid = subject_teacher.sid WHERE subject.sid = " + choice + " AND subject_teacher.tid = " + TID;
             ResultSet resultSet = stmt.executeQuery(query);
             if (resultSet.next()) {
                 return choice;
@@ -289,8 +471,7 @@ public class Main {
     private static int createSubject() throws SQLException {
         System.out.print("Enter subject name: ");
         String name = sc.nextLine();
-        return subjectPool.addSubject(name);
-
+        return subjectPool.addSubject(name, TID);
     }
 
     private static void addQuestion() throws SQLException {
@@ -450,7 +631,7 @@ public class Main {
 
     private static void printAll() throws SQLException {
         if (questionPool.hasQuestions()) { // checking if there are questions
-            System.out.println(questionPool.toStringFull());
+            System.out.println(questionPool.toStringFull(con));
 
         } else {
             System.out.println("There are no questions, aborting...");

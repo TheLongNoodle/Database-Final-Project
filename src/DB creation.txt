@@ -1,0 +1,73 @@
+CREATE DATABASE examdb
+
+--Inside examdb:
+
+
+CREATE TABLE subject
+(
+    sid  SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE teacher
+(
+    tid          SERIAL PRIMARY KEY,
+    name         TEXT NOT NULL,
+    address      TEXT NOT NULL,
+    years_of_exp INTEGER
+);
+
+CREATE TABLE subject_teacher
+(
+    sid INTEGER NOT NULL REFERENCES subject (sid),
+    tid INTEGER NOT NULL REFERENCES teacher (tid),
+    PRIMARY KEY (sid, tid)
+);
+
+CREATE TABLE question
+(
+    qid           SERIAL PRIMARY KEY,
+    sid           INTEGER REFERENCES subject (sid),
+    difficulty    INTEGER CHECK (difficulty BETWEEN 1 AND 3),
+    question_text TEXT NOT NULL,
+    is_selection  BOOLEAN
+);
+
+CREATE TABLE answer
+(
+    aid         SERIAL PRIMARY KEY,
+    sid         INTEGER REFERENCES subject (sid),
+    answer_text TEXT NOT NULL
+);
+
+CREATE TABLE open_question
+(
+    qid SERIAL PRIMARY KEY,
+    aid INTEGER REFERENCES answer (aid),
+    FOREIGN KEY (qid) REFERENCES question (qid) ON DELETE CASCADE
+);
+
+CREATE TABLE selection_question
+(
+    qid        INTEGER,
+    aid        INTEGER,
+    is_correct BOOLEAN,
+    PRIMARY KEY (qid, aid),
+    FOREIGN KEY (qid) REFERENCES question(qid) ON DELETE CASCADE,
+    FOREIGN KEY (aid) REFERENCES answer(aid)
+);
+
+CREATE TABLE exam
+(
+    eid           SERIAL PRIMARY KEY,
+    sid           INTEGER REFERENCES subject (sid),
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    tid           INTEGER REFERENCES teacher (tid)
+);
+
+CREATE TABLE exam_question
+(
+    eid INTEGER REFERENCES exam (eid),
+    qid INTEGER REFERENCES question,
+    PRIMARY KEY (eid, qid)
+);
