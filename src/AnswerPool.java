@@ -66,7 +66,7 @@ public class AnswerPool implements Serializable {
                 str.append("Answer ").append(resultSet.getInt("aid")).append(": ").append(resultSet.getString("answer_text")).append("\n");
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         return str.toString();

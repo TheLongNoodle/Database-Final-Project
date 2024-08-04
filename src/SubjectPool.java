@@ -65,7 +65,7 @@ public class SubjectPool implements Serializable {
                 str.append(resultSet.getInt("sid")).append(") ").append(resultSet.getString("name")).append("\n");
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         return str.toString();

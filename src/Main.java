@@ -29,7 +29,7 @@ public class Main {
             teacherPool = new TeacherPool(con);
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
 
@@ -428,7 +428,17 @@ public class Main {
         System.out.print("Enter teacher address: ");
         String address = sc.nextLine();
         System.out.print("Enter teacher years of experience: ");
-        int exp = sc.nextInt();
+        int exp;
+        while (true) {
+            if (sc.hasNextInt()) {
+                exp = sc.nextInt();
+                break;
+            } else {
+                System.out.println("Incorrect input, try again.");
+            }
+        }
+
+
         sc.reset();
         return teacherPool.addTeacher(name, address, exp);
     }

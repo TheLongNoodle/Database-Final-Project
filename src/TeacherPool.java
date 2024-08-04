@@ -22,7 +22,7 @@ public class TeacherPool {
     public int addTeacher(String name, String address, int exp) throws SQLException {
         String query = "INSERT INTO teacher (name, address, years_of_exp) VALUES ('" + name + "', '" + address + "', " + exp + ")";
         stmt.executeUpdate(query);
-        query = "SELECT tid FROM teacher WHERE name = '" + name + "' AND years_of_exp = '" + exp + "' AND address = '" + address + "'";
+        query = "SELECT tid FROM teacher WHERE name = '" + name + "' AND years_of_exp = " + exp + " AND address = '" + address + "'";
         ResultSet resultSet = stmt.executeQuery(query);
         return resultSet.next() ? resultSet.getInt("tid") : 0;
     }
@@ -40,7 +40,7 @@ public class TeacherPool {
                 str.append(resultSet.getInt("tid")).append(") ").append(resultSet.getString("name")).append(", Lives in ").append(resultSet.getString("address")).append(", Has ").append(resultSet.getInt("years_of_exp")).append(" Years of experience\n");
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         return str.toString();

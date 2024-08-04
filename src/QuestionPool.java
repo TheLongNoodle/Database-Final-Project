@@ -139,7 +139,7 @@ public class QuestionPool implements Serializable {
                 str.append("Question ").append(resultSet.getInt("qid")).append(": ").append(resultSet.getString("question_text")).append("\n");
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         return str.toString();
@@ -159,7 +159,6 @@ public class QuestionPool implements Serializable {
             return str.toString();
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println(e.getMessage());
             System.exit(1);
         }
         return "";
@@ -177,7 +176,7 @@ public class QuestionPool implements Serializable {
                 }
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         return str.toString();
@@ -195,7 +194,7 @@ public class QuestionPool implements Serializable {
                 }
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         return str.toString();
@@ -228,7 +227,7 @@ public class QuestionPool implements Serializable {
             str.append("\n");
             return str.toString();
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         return "";
@@ -255,7 +254,7 @@ public class QuestionPool implements Serializable {
             }
             return str.toString();
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         return "";
