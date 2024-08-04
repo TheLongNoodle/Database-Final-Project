@@ -136,7 +136,6 @@ public class Main {
                                 case 5: { // changing answer content
                                     sc.nextLine();
                                     changAnswerContent();
-                                    sc.nextLine();
                                     exit = true;
                                     break;
                                 }
@@ -257,6 +256,7 @@ public class Main {
                     }
                     case 6: { // Switch user
                         initiateUser();
+                        break;
                     }
                     case 0: { // exit
                         exit = true;
@@ -389,7 +389,7 @@ public class Main {
         }
 
         // initial subject selection
-        if (subjectPool.getSubjectsLen(TID) == 0) {
+        if (subjectPool.getSubjectsLen() == 0) {
             System.out.println("There are no subjects, please create a new one");
             sc = new Scanner(System.in);
             SID = createSubject();
@@ -465,7 +465,7 @@ public class Main {
     }
 
     private static int changeSubject() throws SQLException {
-        System.out.println(subjectPool.toString(TID));
+        System.out.println(subjectPool.toString(TID, con));
         System.out.print("Enter subject number: ");
         while (true) {
             int choice = sc.nextInt();
@@ -473,6 +473,14 @@ public class Main {
             ResultSet resultSet = stmt.executeQuery(query);
             if (resultSet.next()) {
                 return choice;
+            }
+            else{
+                query = "SELECT * FROM subject  WHERE sid = " + choice;
+                resultSet = stmt.executeQuery(query);
+                if (resultSet.next()) {
+                    subjectPool.enrollSubject(choice, TID);
+                    return choice;
+                }
             }
             System.out.println("Wrong input, try again");
         }
@@ -614,15 +622,16 @@ public class Main {
                 System.out.print("Choose the number of the open question you wish to change its answer: ");
                 question = sc.nextInt();
                 sc.nextLine();
-                if ((question > 0) && (question < questionPool.getQuestionsLen())
-                        && (questionPool.isOpen(question))) {
+                String query = "SELECT * FROM open_question WHERE qid = " + question;
+                ResultSet resultSet = stmt.executeQuery(query);
+                if ((resultSet.next()) && (questionPool.isOpen(question))) {
                     System.out.print("Enter answer content: ");
                     content = sc.nextLine();
                     break;
                 }
                 System.out.println("Incorrect input, try again...");
             }
-            questionPool.setAnswer(content, question);
+            questionPool.setAnswer(content, question, answerPool);
             System.out.println("Finished");
         } else {
             System.out.println("There are no open questions to change, aborting...");

@@ -22,9 +22,9 @@ public class QuestionPool implements Serializable {
         return resultSet.next() ? resultSet.getInt("total") : 0;
     }
 
-    public void setAnswer(String answer, int qid) throws SQLException {
-        int aid = findAnswer(answer);
-        String query = "UPDATE open_question SET aid = " + aid + " WHERE qid = " + qid + "AND sid = " + sid;
+    public void setAnswer(String answer, int qid, AnswerPool answerPool) throws SQLException {
+        int aid = answerPool.addAnswer(answer);
+        String query = "UPDATE open_question SET aid = " + aid + " WHERE qid = " + qid;
         stmt.executeUpdate(query);
     }
 
@@ -190,7 +190,7 @@ public class QuestionPool implements Serializable {
             ResultSet resultSet = stmt.executeQuery(query);
             while (resultSet.next()) {
                 if (!resultSet.getBoolean("is_selection")) {
-                    str.append("Question ").append(resultSet.getInt("qid")).append(" (").append(getDifficulty(resultSet.getInt("difficulty"))).append("): ").append(resultSet.getString("content")).append("\n");
+                    str.append("Question ").append(resultSet.getInt("qid")).append(" (").append(getDifficulty(resultSet.getInt("difficulty"))).append("): ").append(resultSet.getString("question_text")).append("\n");
                 }
             }
         } catch (Exception e) {
@@ -265,9 +265,11 @@ public class QuestionPool implements Serializable {
         StringBuilder str = new StringBuilder();
         String query = "SELECT selection_question.is_correct, answer.answer_text, answer.aid, question.question_text, question.qid FROM selection_question JOIN answer ON selection_question.aid = answer.aid JOIN question on question.qid = selection_question.qid WHERE selection_question.qid = " + qid;
         ResultSet resultSet = stmt.executeQuery(query);
-        str.append("Question ").append(resultSet.getInt("question.qid")).append(": ").append(resultSet.getString("question.content")).append("\n");
+        resultSet.next();
+        str.append("Question ").append(resultSet.getInt(5)).append(": ").append(resultSet.getString(4)).append("\n");
+        str.append(resultSet.getString(3)).append(") ").append(resultSet.getString(2)).append(": ").append(resultSet.getBoolean(1)).append("\n");
         while (resultSet.next()) {
-            str.append(resultSet.getString("answer.aid")).append(") ").append(resultSet.getString("answer.answer_text")).append(": ").append(resultSet.getBoolean("selection_question.is_correct")).append("\n");
+            str.append(resultSet.getString(3)).append(") ").append(resultSet.getString(2)).append(": ").append(resultSet.getBoolean(1)).append("\n");
         }
         return str.toString();
     }

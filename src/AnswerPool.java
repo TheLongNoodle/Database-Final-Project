@@ -29,9 +29,17 @@ public class AnswerPool implements Serializable {
     }
 
     // adding answer
-    public void addAnswer(String content) throws SQLException {
-        String query = "INSERT INTO answer(sid, answer_text) VALUES (" + sid + ", '" + content + "')";
-        stmt.executeUpdate(query);
+    public int addAnswer(String content) throws SQLException {
+        String query = "SELECT * FROM answer WHERE sid = " + sid + " AND answer_text LIKE '%" + content + "%'";
+        ResultSet resultSet = stmt.executeQuery(query);
+        if (!resultSet.next()) {
+            query = "INSERT INTO answer(sid, answer_text) VALUES (" + sid + ", '" + content + "')";
+            stmt.executeUpdate(query);
+        }
+        query = "SELECT * FROM answer WHERE sid = " + sid + " AND answer_text LIKE '%" + content + "%'";
+        resultSet = stmt.executeQuery(query);
+        resultSet.next();
+        return resultSet.getInt("aid");
     }
 
     // removing answer
@@ -52,7 +60,7 @@ public class AnswerPool implements Serializable {
 
     // changing answer content
     public void changeAnswerContent(int aid, String content) throws SQLException {
-        String query = "UPDATE answer SET answer_text = '" + content + "' WHERE aid = " + aid + "AND sid = " + sid;
+        String query = "UPDATE answer SET answer_text = '" + content + "' WHERE aid = " + aid + " AND sid = " + sid;
         stmt.executeUpdate(query);
     }
 
