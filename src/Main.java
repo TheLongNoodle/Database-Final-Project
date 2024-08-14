@@ -1,6 +1,8 @@
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.Scanner;
+import java.util.Random;
 
 public class Main {
 
@@ -8,11 +10,14 @@ public class Main {
     private static Scanner sc;
     private static int SID;
     private static int TID;
+    private static final int minExamQuestions = 4;
+    private static final int maxSelections = 10;
     private static TeacherPool teacherPool;
     private static SubjectPool subjectPool;
     private static QuestionPool questionPool;
     private static AnswerPool answerPool;
     private static Connection con;
+    private static Random random;
 
     public static void main(String[] args) throws SQLException {
 
@@ -27,6 +32,7 @@ public class Main {
             questionPool = new QuestionPool(con);
             answerPool = new AnswerPool(con);
             teacherPool = new TeacherPool(con);
+            random = new Random();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -172,16 +178,26 @@ public class Main {
                     case 3: { // Exam sub-menu
                         while (true) {
                             System.out.println(
-                                    "1: create exam.\n2: print exam.\n0: go back.");
+                                    "1: create manual exam.\n2: create automatic exam.\n3: print exam.\n4: print exam answers.\n0: go back.");
                             choice = sc.nextInt();
                             switch (choice) {
-                                case 1: { // create exam
-                                    createExam();
+                                case 1: { // create manual exam
+                                    CreateManualExam();
                                     exit = true;
                                     break;
                                 }
-                                case 2: { // print exam
-                                    printExam();
+                                case 2: { // create automatic exam
+                                    CreateAutomaticExam();
+                                    exit = true;
+                                    break;
+                                }
+                                case 3: { // print exam
+                                    printExam(false);
+                                    exit = true;
+                                    break;
+                                }
+                                case 4: { // print exam answers
+                                    printExam(true);
                                     exit = true;
                                     break;
                                 }
@@ -277,7 +293,46 @@ public class Main {
         }
     }
 
-    private static void createExam() throws SQLException {
+    private static void CreateAutomaticExam() throws SQLException {
+        String query = "SELECT COUNT(*) as total FROM question WHERE sid = " + SID;
+        ResultSet resultSet = stmt.executeQuery(query);
+        resultSet.next();
+        if (resultSet.getInt("total") < minExamQuestions) {
+            System.out.println("You need at least " + minExamQuestions + " questions in the database!");
+        }
+        else{
+            ArrayList<Integer> list = new ArrayList<Integer>();
+            query = "SELECT qid FROM question WHERE sid = " + SID;
+            resultSet = stmt.executeQuery(query);
+            while (resultSet.next()) {
+                list.add(resultSet.getInt("qid"));
+            }
+            query = "INSERT INTO exam (sid, creation_time, tid) VALUES (" + SID + ", NOW(), " + TID + ")";
+            stmt.executeUpdate(query);
+            query = "SELECT * FROM exam WHERE sid = " + SID + " AND tid = " + TID + " ORDER BY creation_time DESC";
+            resultSet = stmt.executeQuery(query);
+            resultSet.next();
+            int EID = resultSet.getInt("eid");
+            int choice;
+            System.out.print("Select exam size, from 4 to "+list.size()+": ");
+            while (true){
+                choice = sc.nextInt();
+                if (choice >=4 && choice <=list.size()){
+                    break;
+                }
+                System.out.println("Incorrect input, try again.");
+            }
+            int rand;
+            for (int i = 0; i < choice; i++) {
+                rand = random.nextInt(list.size());
+                query = "INSERT INTO exam_question (eid, qid) VALUES (" + EID + ", " + list.get(rand) + ")";
+                stmt.executeUpdate(query);
+                list.remove(rand);
+            }
+        }
+    }
+
+    private static void CreateManualExam() throws SQLException {
         if (questionPool.getQuestionsLen() < 1) {
             System.out.println("There are no question on the subject!");
             return;
@@ -322,7 +377,7 @@ public class Main {
         }
     }
 
-    private static void printExam() throws SQLException {
+    private static void printExam(Boolean full) throws SQLException {
         String query = "SELECT COUNT(*) as total FROM exam WHERE sid = " + SID + " AND tid = " + TID;
         ResultSet resultSet = stmt.executeQuery(query);
         resultSet.next();
@@ -346,7 +401,12 @@ public class Main {
                 query = "SELECT * FROM exam_question WHERE eid = " + choice;
                 resultSet = stmt.executeQuery(query);
                 while (resultSet.next()) {
-                    System.out.println(questionPool.toStringSpecific(resultSet.getInt("qid")));
+                    if(full){
+                        System.out.println(questionPool.toStringSpecificFull(resultSet.getInt("qid")));
+                    }
+                    else{
+                        System.out.println(questionPool.toStringSpecific(resultSet.getInt("qid")));
+                    }
                 }
                 System.out.println("------------------------------");
                 return;
@@ -354,8 +414,6 @@ public class Main {
                 System.out.println("Exam does not exist!");
             }
         }
-
-
     }
 
     private static void initiateUser() throws SQLException {
@@ -565,7 +623,7 @@ public class Main {
             int answer = chooseAnswer();
             System.out.print("Is the answer correct?[true/false]: ");
             Boolean bool = sc.nextBoolean();
-            questionPool.addAnswer(question, answer, bool);
+            questionPool.addAnswer(question, answer, bool, maxSelections);
             System.out.println("Finished");
         } else {
             System.out.println("There are no selection questions and/or answers, aborting...");

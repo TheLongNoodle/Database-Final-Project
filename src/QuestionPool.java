@@ -103,9 +103,17 @@ public class QuestionPool implements Serializable {
     }
 
     // adding answer to selection question
-    public void addAnswer(int qid, int aid, Boolean bool) throws SQLException {
-        String query = "INSERT INTO selection_question (qid, aid, is_correct) VALUES (" + qid + ", " + aid + ", " + bool + ")";
-        stmt.executeUpdate(query);
+    public void addAnswer(int qid, int aid, Boolean bool, int maxSelections) throws SQLException {
+        String query = "SELECT COUNT(*) as total FROM selection_question WHERE qid = " + qid;
+        ResultSet resultSet = stmt.executeQuery(query);
+        resultSet.next();
+        if (resultSet.getInt("total") > maxSelections) {
+            System.out.println("Question has too many answers!");
+        }
+        else{
+            query = "INSERT INTO selection_question (qid, aid, is_correct) VALUES (" + qid + ", " + aid + ", " + bool + ")";
+            stmt.executeUpdate(query);
+        }
     }
 
     // removing answer from question
