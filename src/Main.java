@@ -23,6 +23,7 @@ public class Main {
 
         // Connecting to database
         try {
+            /////////////// CHANGE THIS FOR TESTING ///////////////
             con = DriverManager.getConnection("jdbc:postgresql://localhost:5432/examdb", "postgres", "admin");
             System.out.println("Connected to database!");
             stmt = con.createStatement();
@@ -44,6 +45,7 @@ public class Main {
         sc = new Scanner(System.in);
         int choice;
         boolean exit = false;
+        wakeup();
         initiateUser();
 
 
@@ -301,7 +303,7 @@ public class Main {
             System.out.println("You need at least " + minExamQuestions + " questions in the database!");
         }
         else{
-            ArrayList<Integer> list = new ArrayList<Integer>();
+            ArrayList<Integer> list = new ArrayList<>();
             query = "SELECT qid FROM question WHERE sid = " + SID;
             resultSet = stmt.executeQuery(query);
             while (resultSet.next()) {
@@ -762,5 +764,94 @@ public class Main {
             System.out.println("Incorrect input, try again...");
         }
         return question;
+    }
+
+    private static void wakeup() throws SQLException {
+        String query = "SELECT COUNT(table_name) AS total FROM information_schema.tables WHERE table_schema = 'public'";
+        ResultSet resultSet = stmt.executeQuery(query);
+        resultSet.next();
+        if(resultSet.getInt("total") != 9){
+            System.out.println("Issue detected, recreating database...");
+            query = """
+                    DO $$ DECLARE
+                        r RECORD;
+                    BEGIN
+                        FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                        END LOOP;
+                    END $$;""";
+            stmt.executeUpdate(query);
+            query = """
+                    CREATE TABLE subject
+                      (
+                          sid  SERIAL PRIMARY KEY,
+                          name TEXT NOT NULL
+                      );
+                    
+                      CREATE TABLE teacher
+                      (
+                          tid          SERIAL PRIMARY KEY,
+                          name         TEXT NOT NULL,
+                          address      TEXT NOT NULL,
+                          years_of_exp INTEGER
+                      );
+                    
+                      CREATE TABLE subject_teacher
+                      (
+                          sid INTEGER NOT NULL REFERENCES subject (sid),
+                          tid INTEGER NOT NULL REFERENCES teacher (tid),
+                          PRIMARY KEY (sid, tid)
+                      );
+                    
+                      CREATE TABLE question
+                      (
+                          qid           SERIAL PRIMARY KEY,
+                          sid           INTEGER REFERENCES subject (sid),
+                          difficulty    INTEGER CHECK (difficulty BETWEEN 1 AND 3),
+                          question_text TEXT NOT NULL,
+                          is_selection  BOOLEAN
+                      );
+                    
+                      CREATE TABLE answer
+                      (
+                          aid         SERIAL PRIMARY KEY,
+                          sid         INTEGER REFERENCES subject (sid),
+                          answer_text TEXT NOT NULL
+                      );
+                    
+                      CREATE TABLE open_question
+                      (
+                          qid SERIAL PRIMARY KEY,
+                          aid INTEGER REFERENCES answer (aid),
+                          FOREIGN KEY (qid) REFERENCES question (qid) ON DELETE CASCADE
+                      );
+                    
+                      CREATE TABLE selection_question
+                      (
+                          qid        INTEGER,
+                          aid        INTEGER,
+                          is_correct BOOLEAN,
+                          PRIMARY KEY (qid, aid),
+                          FOREIGN KEY (qid) REFERENCES question(qid) ON DELETE CASCADE,
+                          FOREIGN KEY (aid) REFERENCES answer(aid)
+                      );
+                    
+                      CREATE TABLE exam
+                      (
+                          eid           SERIAL PRIMARY KEY,
+                          sid           INTEGER REFERENCES subject (sid),
+                          creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                          tid           INTEGER REFERENCES teacher (tid)
+                      );
+                    
+                      CREATE TABLE exam_question
+                      (
+                          eid INTEGER REFERENCES exam (eid),
+                          qid INTEGER REFERENCES question,
+                          PRIMARY KEY (eid, qid)
+                      );
+                    """;
+            stmt.executeUpdate(query);
+        }
     }
 }

@@ -1,73 +1,85 @@
-CREATE DATABASE examdb
+1. create database using query "CREATE DATABASE examdb"
+2. in the main, change username, password and domain if nessecary.
+3. run the program, it should automatically clear and rebuild the database structure on the first run (also if it detects too many/too few tables)
 
---Inside examdb:
+creation queries are in the bottom of Main.java:
 
+    CREATE TABLE subject
+      (
+          sid  SERIAL PRIMARY KEY,
+          name TEXT NOT NULL
+      );
 
-CREATE TABLE subject
-(
-    sid  SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-);
+      CREATE TABLE teacher
+      (
+          tid          SERIAL PRIMARY KEY,
+          name         TEXT NOT NULL,
+          address      TEXT NOT NULL,
+          years_of_exp INTEGER
+      );
 
-CREATE TABLE teacher
-(
-    tid          SERIAL PRIMARY KEY,
-    name         TEXT NOT NULL,
-    address      TEXT NOT NULL,
-    years_of_exp INTEGER
-);
+      CREATE TABLE subject_teacher
+      (
+          sid INTEGER NOT NULL REFERENCES subject (sid),
+          tid INTEGER NOT NULL REFERENCES teacher (tid),
+          PRIMARY KEY (sid, tid)
+      );
 
-CREATE TABLE subject_teacher
-(
-    sid INTEGER NOT NULL REFERENCES subject (sid),
-    tid INTEGER NOT NULL REFERENCES teacher (tid),
-    PRIMARY KEY (sid, tid)
-);
+      CREATE TABLE question
+      (
+          qid           SERIAL PRIMARY KEY,
+          sid           INTEGER REFERENCES subject (sid),
+          difficulty    INTEGER CHECK (difficulty BETWEEN 1 AND 3),
+          question_text TEXT NOT NULL,
+          is_selection  BOOLEAN
+      );
 
-CREATE TABLE question
-(
-    qid           SERIAL PRIMARY KEY,
-    sid           INTEGER REFERENCES subject (sid),
-    difficulty    INTEGER CHECK (difficulty BETWEEN 1 AND 3),
-    question_text TEXT NOT NULL,
-    is_selection  BOOLEAN
-);
+      CREATE TABLE answer
+      (
+          aid         SERIAL PRIMARY KEY,
+          sid         INTEGER REFERENCES subject (sid),
+          answer_text TEXT NOT NULL
+      );
 
-CREATE TABLE answer
-(
-    aid         SERIAL PRIMARY KEY,
-    sid         INTEGER REFERENCES subject (sid),
-    answer_text TEXT NOT NULL
-);
+      CREATE TABLE open_question
+      (
+          qid SERIAL PRIMARY KEY,
+          aid INTEGER REFERENCES answer (aid),
+          FOREIGN KEY (qid) REFERENCES question (qid) ON DELETE CASCADE
+      );
 
-CREATE TABLE open_question
-(
-    qid SERIAL PRIMARY KEY,
-    aid INTEGER REFERENCES answer (aid),
-    FOREIGN KEY (qid) REFERENCES question (qid) ON DELETE CASCADE
-);
+      CREATE TABLE selection_question
+      (
+          qid        INTEGER,
+          aid        INTEGER,
+          is_correct BOOLEAN,
+          PRIMARY KEY (qid, aid),
+          FOREIGN KEY (qid) REFERENCES question(qid) ON DELETE CASCADE,
+          FOREIGN KEY (aid) REFERENCES answer(aid)
+      );
 
-CREATE TABLE selection_question
-(
-    qid        INTEGER,
-    aid        INTEGER,
-    is_correct BOOLEAN,
-    PRIMARY KEY (qid, aid),
-    FOREIGN KEY (qid) REFERENCES question(qid) ON DELETE CASCADE,
-    FOREIGN KEY (aid) REFERENCES answer(aid)
-);
+      CREATE TABLE exam
+      (
+          eid           SERIAL PRIMARY KEY,
+          sid           INTEGER REFERENCES subject (sid),
+          creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          tid           INTEGER REFERENCES teacher (tid)
+      );
 
-CREATE TABLE exam
-(
-    eid           SERIAL PRIMARY KEY,
-    sid           INTEGER REFERENCES subject (sid),
-    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    tid           INTEGER REFERENCES teacher (tid)
-);
+      CREATE TABLE exam_question
+      (
+          eid INTEGER REFERENCES exam (eid),
+          qid INTEGER REFERENCES question,
+          PRIMARY KEY (eid, qid)
+      );
 
-CREATE TABLE exam_question
-(
-    eid INTEGER REFERENCES exam (eid),
-    qid INTEGER REFERENCES question,
-    PRIMARY KEY (eid, qid)
-);
+also clearing query:
+
+    DO $$ DECLARE
+        r RECORD;
+    BEGIN
+        FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+        END LOOP;
+    END $$;
+
